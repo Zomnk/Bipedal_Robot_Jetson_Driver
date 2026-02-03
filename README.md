@@ -1,0 +1,2 @@
+# Bipedal_Robot_Jetson_Driver
+基于Jetson的双足机器人策略推理程序，通过UDP与ODroid通信。
