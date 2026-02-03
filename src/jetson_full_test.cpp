@@ -192,13 +192,6 @@ int main(int argc, char** argv) {
     uint64_t last_print_time_us = start_time_us;
     
     while (g_running) {
-        // 获取当前时间，计算正弦位置
-        struct timeval now_tv;
-        gettimeofday(&now_tv, NULL);
-        uint64_t now_us = now_tv.tv_sec * 1000000ULL + now_tv.tv_usec;
-        float elapsed_s = (now_us - start_time_us) / 1000000.0f;
-        float target_position = amplitude * sin(omega_sine * elapsed_s);
-        
         // ===== 1. 先接收ODroid的观测量 (Request消息) =====
         int recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 
                                0, (struct sockaddr *)&odroid_addr, 
@@ -217,15 +210,27 @@ int main(int argc, char** argv) {
                      << ntohs(odroid_addr.sin_port) << endl;
                 cout << "开始数据交互..." << endl;
             }
-            
-            // 每500ms打印一次详细观测信息
-            if (now_us - last_print_time_us >= 500000) {
-                print_observation(msg_request, recv_count);
-                last_print_time_us = now_us;
-            }
         }
         
-        // ===== 2. 生成并发送正弦Action (Response消息) =====
+        // ===== 2. 获取当前时间，计算正弦位置 =====
+        struct timeval now_tv;
+        gettimeofday(&now_tv, NULL);
+        uint64_t now_us = now_tv.tv_sec * 1000000ULL + now_tv.tv_usec;
+        float elapsed_s = (now_us - start_time_us) / 1000000.0f;
+        float target_position = amplitude * sin(omega_sine * elapsed_s);
+        
+        // 每500ms打印一次详细观测信息（包含当前目标位置）
+        if (now_us - last_print_time_us >= 500000) {
+            if(recv_count > 0) {
+                print_observation(msg_request, recv_count);
+            }
+            cout << "[当前时间] t=" << fixed << setprecision(3) << elapsed_s 
+                 << "s, 目标位置=" << target_position << " rad (" 
+                 << (target_position * 180.0 / M_PI) << " deg)" << endl;
+            last_print_time_us = now_us;
+        }
+        
+        // ===== 3. 生成并发送正弦Action (Response消息) =====
         // 10个电机都使用相同的正弦位置（与test_motor_control.cpp一致）
         for (int i = 0; i < 10; i++) {
             msg_response.q_exp[i] = target_position;
