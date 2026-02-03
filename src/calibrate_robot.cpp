@@ -188,7 +188,17 @@ float calibrate_joint(int joint_id, int sock_fd,
     terminal_modified = true;
     
     while (g_running) {
-        // 更新反馈
+        // ===== 1. 先接收ODroid的反馈数据 =====
+        char recv_buf[500] = {0};
+        int recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 
+                               0, (struct sockaddr *)&odroid_addr, &addr_len);
+        
+        if (recv_num > 0) {
+            memcpy(&latest_feedback, recv_buf, sizeof(latest_feedback));
+            feedback_received = true;
+        }
+        
+        // ===== 2. 如果收到反馈，更新并发送控制指令 =====
         if (feedback_received) {
             current_angle = latest_feedback.q[joint_id];
             
@@ -207,9 +217,6 @@ float calibrate_joint(int joint_id, int sock_fd,
             // 发送控制指令（目标=当前位置，实现扭矩卸载）
             sendto(sock_fd, send_buf, sizeof(msg_response), 
                    0, (struct sockaddr *)&odroid_addr, addr_len);
-            // 发送控制指令（目标=当前位置，实现扭矩卸载）
-            sendto(sock_fd, send_buf, sizeof(msg_response), 
-                   0, (struct sockaddr *)&odroid_addr, addr_len);
             
             // 更新显示
             if (update_count % 10 == 0) {  // 每20ms更新一次显示
@@ -218,6 +225,11 @@ float calibrate_joint(int joint_id, int sock_fd,
                      << (current_angle * 180.0 / M_PI) << " deg)   " << flush;
             }
             update_count++;
+        } else {
+            // 如果没收到反馈，发送零指令保持连接
+            memcpy(send_buf, &msg_response, sizeof(msg_response));
+            sendto(sock_fd, send_buf, sizeof(msg_response), 
+                   0, (struct sockaddr *)&odroid_addr, addr_len);
         }
         
         // 检查键盘输入
