@@ -201,7 +201,12 @@ int RL_Tinymal_UDP::init_policy(){
     cout <<"cuda_is_available:"<< torch::cuda::is_available() << endl;
     cout <<"cudnn_is_available:"<< torch::cuda::cudnn_is_available() << endl;
     
-    model_path = "/home/pi/Downloads/back_good/LocomotionWithNP3O-masteroldxgoo2/LocomotionWithNP3O-masteroldx/model_jitt.pt";//载入jit模型
+    // 使用相对路径或绝对路径指向实际的模型文件位置
+    model_path = "../model_jitt.pt";  // 相对于build目录的上级目录
+    // 或使用绝对路径（根据实际部署位置修改）：
+    // model_path = "/home/jetson/sim2sim_lcm/model_jitt.pt";
+    
+    cout << "Loading model from: " << model_path << endl;
     load_policy();
 
  // initialize record

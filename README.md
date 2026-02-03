@@ -142,9 +142,14 @@ sudo ldconfig
 
 ## 编译
 
-### 方法1: 直接编译
-
 ```bash
+# 激活anaconda环境
+source ~/archiconda3/bin/activate
+
+# 进入lcm环境
+conda activate lcm
+
+# 进入相应文件夹
 cd sim2sim_lcm
 mkdir -p build && cd build
 
@@ -153,22 +158,6 @@ cmake ..
 
 # 编译
 make -j4
-```
-
-### 方法2: 修改路径后编译
-
-编辑 `CMakeLists.txt`，根据您的系统更新以下路径：
-- `Torch_DIR`: LibTorch安装路径
-- `CUDA_TOOLKIT_ROOT_DIR`: CUDA安装路径
-- `LCM_DIR`: LCM安装路径（如果使用）
-
-```bash
-# 编译所有目标
-cd build
-make udp_publisher_tinker  # 主程序
-make udp_publisher         # 备用12关节版本
-make lcm_service           # 仿真测试工具
-make lcm_publisher         # 仿真测试工具
 ```
 
 ## 运行
