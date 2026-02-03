@@ -58,6 +58,7 @@ add_executable(lcm_publisher src/lcm_publisher.cpp)
 add_executable(udp_publisher src/udp_publisher.cpp)
 add_executable(udp_publisher_tinker src/udp_publisher_tinker.cpp)
 add_executable(udp_test src/udp_test.cpp)  # UDP通信测试程序（不需要PyTorch）
+add_executable(jetson_full_test src/jetson_full_test.cpp)  # 完整数据流测试（不需要PyTorch）
 
 add_dependencies(lcm_service lcm_types)
 add_dependencies(lcm_publisher lcm_types)
