@@ -193,12 +193,13 @@ float calibrate_joint(int joint_id, int sock_fd,
             current_angle = latest_feedback.q[joint_id];
             
             // 关键：将所有关节的目标位置设置为当前实际位置
-            // 这样电机不会施加扭矩，可以自由手动调整
+            // 使用 dq_exp[0] = -999.0 作为标定模式标志（该字段为预留字段，安全）
             for (int i = 0; i < 10; i++) {
                 msg_response.q_exp[i] = latest_feedback.q[i];
                 msg_response.dq_exp[i] = 0.0f;
-                msg_response.tau_exp[i] = 0.0f;  // 力矩为0
+                msg_response.tau_exp[i] = 0.0f;
             }
+            msg_response.dq_exp[0] = -999.0f;  // 标定模式标志（预留字段）
             
             // 更新发送缓冲
             memcpy(send_buf, &msg_response, sizeof(msg_response));
