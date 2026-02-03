@@ -32,8 +32,9 @@ include_directories(${Torch_DIR}/include)
 include_directories(${CMAKE_BINARY_DIR}/lcm_types)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-include_directories("lcm_types/my_lcm/Request.hpp")
-include_directories("lcm_types/my_lcm/Response.hpp")
+# LCM类型目录已在上面包含
+# include_directories("lcm_types/my_lcm/Request.hpp")  # 错误：这是文件不是目录
+# include_directories("lcm_types/my_lcm/Response.hpp")  # 错误：这是文件不是目录
 
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/lcm_types/my_lcm/request.hpp
