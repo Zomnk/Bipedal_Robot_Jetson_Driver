@@ -74,10 +74,17 @@ const char* JOINT_NAMES[10] = {
 volatile bool g_running = true;
 _msg_request latest_feedback;
 bool feedback_received = false;
+bool terminal_modified = false;  // 标记终端是否被修改
 
 void signal_handler(int sig) {
     cout << "\n\n收到信号 " << sig << ", 退出标定..." << endl;
     g_running = false;
+    
+    // 恢复终端设置
+    if (terminal_modified) {
+        system("stty icanon echo");
+        terminal_modified = false;
+    }
 }
 
 /**
@@ -179,7 +186,8 @@ float calibrate_joint(int joint_id, int sock_fd,
     cout << "-------------------------------------------" << endl;
     
     // 非阻塞输入设置
-    system("stty -icanon");  // 关闭行缓冲
+    system("stty -icanon -echo");  // 关闭行缓冲和回显
+    terminal_modified = true;
     
     while (g_running) {
         // 持续发送零指令
@@ -223,7 +231,14 @@ float calibrate_joint(int joint_id, int sock_fd,
     }
     
     // 恢复终端设置
-    system("stty icanon");
+    system("stty icanon echo");
+    terminal_modified = false;
+    
+    // 如果是因为信号退出，直接返回当前值
+    if (!g_running) {
+        cout << "\n标定被中断" << endl;
+        return current_angle;
+    }
     
     cout << "\n✓ 标定完成: " << current_angle << " rad" << endl;
     return current_angle;
@@ -375,8 +390,9 @@ int main(int argc, char** argv) {
             if (!g_running) break;
             init_pos[i] = calibrate_joint(i, sock_fd, odroid_addr, addr_len);
             
-            if (i < 9) {
+            if (i < 9 && g_running) {
                 cout << "\n按Enter继续标定下一个关节..." << endl;
+                cin.ignore();  // 清除输入缓冲
                 getchar();
             }
         }
@@ -405,6 +421,12 @@ int main(int argc, char** argv) {
         } else {
             cout << "✗ 失败!" << endl;
         }
+    }
+    
+    // 最后确保终端设置已恢复
+    if (terminal_modified) {
+        system("stty icanon echo");
+        terminal_modified = false;
     }
     
     close(sock_fd);
