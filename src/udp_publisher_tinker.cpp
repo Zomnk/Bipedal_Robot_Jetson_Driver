@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
     string UDP_IP="127.0.0.1";// local test
     int SERV_PORT= 8888 ;// 
 #else
-    string UDP_IP="192.168.1.11";// 
+    string UDP_IP="192.168.5.159";// ODroid IP
     int SERV_PORT= 10000 ;// 
 #endif
     addr_serv.sin_addr.s_addr = inet_addr(UDP_IP.c_str());//机器人是客户端 软件主动发送
@@ -296,8 +296,15 @@ int main(int argc, char** argv) {
     tinymal_rl.init_policy();
      for(int i=0;i<10;i++)
         msg_response.q_exp[i]=tinymal_rl.action[i];
+    printf("======================================\n");
     printf("Thread UDP RL-Tinker\n");
+    printf("目标IP: %s, 端口: %d\n", UDP_IP.c_str(), SERV_PORT);
+    printf("消息大小: Request=%zu bytes, Response=%zu bytes\n", 
+           sizeof(msg_request), sizeof(msg_response));
+    printf("开始UDP通信测试...\n");
+    printf("======================================\n");
     int cnt_p=0;
+    int send_cnt = 0;
     while (1)
     {
         //send action
@@ -324,11 +331,38 @@ int main(int argc, char** argv) {
             perror("Robot sendto error:");
             exit(1);
         }
+        
+        send_cnt++;
+        if(send_cnt % 250 == 0) {  // 每0.5秒打印一次发送统计
+            cout << "[UDP发送 #" << send_cnt << "] 已发送 " << send_num << " 字节" << endl;
+        }
         //get obs
         recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), MSG_WAITALL, (struct sockaddr *)&addr_serv, (socklen_t *)&len);
         if(recv_num >0)
         {
             memcpy(&msg_request,recv_buf,sizeof(msg_request));
+            
+            // 打印接收到的消息（用于调试UDP传输）
+            static int recv_cnt = 0;
+            recv_cnt++;
+            if(recv_cnt % 250 == 0) {  // 每0.5秒打印一次 (250*2ms)
+                cout << "[UDP接收 #" << recv_cnt << "] ";
+                cout << "trigger=" << msg_request.trigger << ", ";
+                cout << "cmd=[" << msg_request.command[0] << "," 
+                     << msg_request.command[1] << "," 
+                     << msg_request.command[2] << "], ";
+                cout << "姿态=[" << msg_request.eu_ang[0] << "," 
+                     << msg_request.eu_ang[1] << "," 
+                     << msg_request.eu_ang[2] << "], ";
+                cout << "角速度=[" << msg_request.omega[0] << "," 
+                     << msg_request.omega[1] << "," 
+                     << msg_request.omega[2] << "]" << endl;
+                cout << "         q[0-4]=[" << msg_request.q[0] << "," 
+                     << msg_request.q[1] << "," 
+                     << msg_request.q[2] << "," 
+                     << msg_request.q[3] << "," 
+                     << msg_request.q[4] << "]" << endl;
+            }
             
             tinymal_rl.handleMessage(msg_request);
         }
