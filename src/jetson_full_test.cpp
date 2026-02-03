@@ -11,11 +11,12 @@
  *       4. 从robot.yaml读取标定的初始姿态
  */
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <cstring>
-#include <cmath>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -24,6 +25,10 @@
 #include <csignal>
 #include <string>
 #include <sstream>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 using namespace std;
 
@@ -118,39 +123,6 @@ bool load_init_pose_from_yaml(const string& filename, float init_pos[10]) {
     if (joint_index == 10) {
         cout << "✓ 成功!" << endl;
         return true;
-    
-    // ===== 读取初始姿态配置 =====
-    float robot_init_pos[10] = {
-        0.0, -0.07, 0.57, -1.12, 0.56,   // 左腿默认值
-        0.0,  0.07, 0.57, -1.12, 0.56    // 右腿默认值
-    };
-    
-    string yaml_file = "../robot.yaml";
-    if (argc >= 2 && string(argv[1]) == "--config" && argc >= 3) {
-        yaml_file = argv[2];
-    }
-    
-    bool yaml_loaded = load_init_pose_from_yaml(yaml_file, robot_init_pos);
-    
-    if (yaml_loaded) {
-        cout << "\n初始姿态配置 (从 " << yaml_file << "):" << endl;
-        cout << "  左腿: [";
-        for (int i = 0; i < 5; i++) {
-            cout << fixed << setprecision(3) << robot_init_pos[i];
-            if (i < 4) cout << ", ";
-        }
-        cout << "]" << endl;
-        cout << "  右腿: [";
-        for (int i = 5; i < 10; i++) {
-            cout << robot_init_pos[i];
-            if (i < 9) cout << ", ";
-        }
-        cout << "]" << endl;
-    } else {
-        cout << "\n使用默认初始姿态（未找到配置文件）" << endl;
-        cout << "提示: 运行 ./calibrate_robot 进行标定" << endl;
-    }
-    cout << "========================================" << endl;
     } else {
         cerr << "\n错误: 配置文件不完整，仅读取到 " << joint_index << " 个关节" << endl;
         return false;
@@ -222,6 +194,39 @@ int main(int argc, char** argv) {
     cout << "  功能: 发送正弦action，接收观测反馈" << endl;
     cout << "========================================" << endl;
     
+    // ===== 读取初始姿态配置 =====
+    float robot_init_pos[10] = {
+        0.0, 0.0, 0.0, 0.0, 0.0,   // 左腿默认值
+        0.0, 0.0, 0.0, 0.0, 0.0    // 右腿默认值
+    };
+    
+    string yaml_file = "../robot.yaml";
+    if (argc >= 2 && string(argv[1]) == "--config" && argc >= 3) {
+        yaml_file = argv[2];
+    }
+    
+    bool yaml_loaded = load_init_pose_from_yaml(yaml_file, robot_init_pos);
+    
+    if (yaml_loaded) {
+        cout << "\n初始姿态配置 (从 " << yaml_file << "):" << endl;
+        cout << "  左腿: [";
+        for (int i = 0; i < 5; i++) {
+            cout << fixed << setprecision(3) << robot_init_pos[i];
+            if (i < 4) cout << ", ";
+        }
+        cout << "]" << endl;
+        cout << "  右腿: [";
+        for (int i = 5; i < 10; i++) {
+            cout << robot_init_pos[i];
+            if (i < 9) cout << ", ";
+        }
+        cout << "]" << endl;
+    } else {
+        cout << "\n使用默认初始姿态（未找到配置文件）" << endl;
+        cout << "提示: 运行 ./calibrate_robot 进行标定" << endl;
+    }
+    cout << "========================================" << endl;
+    
     // 创建UDP socket
     int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(sock_fd < 0) {
@@ -241,16 +246,10 @@ int main(int argc, char** argv) {
     string ODROID_IP = "192.168.5.159";
     int SERV_PORT = 10000;
     
-    if (argc >= 2) {
+    if (argc >= 2 && string(argv[1]) != "--config") {
         ODROID_IP = argv[1];
     }
-    
-    // 初始化msg_request中的init_pos（用于发送给ODroid）
-    memset(&msg_request, 0, sizeof(msg_request));
-    for (int i = 0; i < 10; i++) {
-        msg_request.init_pos[i] = robot_init_pos[i];
-    }
-    if (argc >= 3) {
+    if (argc >= 3 && string(argv[1]) != "--config") {
         SERV_PORT = atoi(argv[2]);
     }
     
@@ -273,7 +272,7 @@ int main(int argc, char** argv) {
     cout << "Request消息大小: " << sizeof(_msg_request) << " bytes" << endl;
     cout << "Response消息大小: " << sizeof(_msg_response) << " bytes" << endl;
     cout << "========================================" << endl;
-    cout << "正弦参数: 幅值=PI, 周期=4秒" << endl;
+    cout << "正弦参数: 幅值=PI, 周期=10秒" << endl;
     cout << "========================================" << endl;
     cout << "开始完整数据流测试，按Ctrl+C退出" << endl;
     cout << "等待ODroid连接..." << endl;
@@ -283,6 +282,12 @@ int main(int argc, char** argv) {
     _msg_response msg_response;
     char send_buf[500] = {0};
     char recv_buf[500] = {0};
+    
+    // 初始化msg_request中的init_pos（用于发送给ODroid）
+    memset(&msg_request, 0, sizeof(msg_request));
+    for (int i = 0; i < 10; i++) {
+        msg_request.init_pos[i] = robot_init_pos[i];
+    }
     
     // 正弦参数（与test_motor_control.cpp保持一致）
     const float amplitude = M_PI;        // 幅值为PI
@@ -338,15 +343,15 @@ int main(int argc, char** argv) {
                 print_observation(msg_request, recv_count);
             }
             cout << "[当前时间] t=" << fixed << setprecision(3) << elapsed_s 
-           动作 = 初始位置 + 正弦扰动
-        for (int i = 0; i < 10; i++) {
-            msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;  // 20%幅值扰动
+                 << "s, 目标位置=" << target_position << " rad (" 
+                 << (target_position * 180.0 / M_PI) << " deg)" << endl;
+            last_print_time_us = now_us;
         }
         
         // ===== 3. 生成并发送正弦Action (Response消息) =====
-        // 10个电机都使用相同的正弦位置（与test_motor_control.cpp一致）
+        // Action = InitPos + Sine * 0.2 (20% amplitude perturbation for safety)
         for (int i = 0; i < 10; i++) {
-            msg_response.q_exp[i] = target_position;
+            msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;
             msg_response.dq_exp[i] = 0.0f;
             msg_response.tau_exp[i] = 0.0f;
         }
