@@ -63,12 +63,16 @@ int main(int argc, char** argv) {
         return 1;
     }
     
-    // 配置目标地址（ODroid）
-    struct sockaddr_in addr_serv;
-    memset(&addr_serv, 0, sizeof(addr_serv));
-    addr_serv.sin_family = AF_INET;
+    // 设置socket接收超时（避免阻塞）
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 100000;  // 100ms超时
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        cerr << "设置socket超时失败!" << endl;
+    }
     
-    string UDP_IP = "192.168.5.159";  // ODroid IP
+    // 解析命令行参数
+    string ODROID_IP = "192.168.5.159";  // ODroid IP
     int SERV_PORT = 10000;
     
     // 支持命令行参数修改IP和端口
@@ -77,18 +81,30 @@ int main(int argc, char** argv) {
     }
     if (argc >= 3) {
         SERV_PORT = atoi(argv[2]);
+        ODROID_IP = argv[1];
+    }
+    if (argc >= 3) {
+        SERV_PORT = atoi(argv[2]);
     }
     
-    addr_serv.sin_addr.s_addr = inet_addr(UDP_IP.c_str());
-    addr_serv.sin_port = htons(SERV_PORT);
-    int len = sizeof(addr_serv);
+    // ===== 关键修复：Jetson端必须先bind本地端口 =====
+    struct sockaddr_in local_addr;
+    memset(&local_addr, 0, sizeof(local_addr));
+    local_addr.sin_family = AF_INET;
+    local_addr.sin_addr.s_addr = INADDR_ANY;  // 监听所有网卡
+    local_addr.sin_port = htons(SERV_PORT);   // 绑定10000端口
     
-    cout << "目标IP: " << UDP_IP << endl;
-    cout << "端口: " << SERV_PORT << endl;
-    cout << "Request消息大小: " << sizeof(_msg_request) << " bytes" << endl;
-    cout << "Response消息大小: " << sizeof(_msg_response) << " bytes" << endl;
-    cout << "========================================" << endl;
+    if (bind(sock_fd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
+        cerr << "Bind端口失败! 请检查端口" << SERV_PORT << "是否被占用" << endl;
+        perror("bind");
+        close(sock_fd);
+        return 1;
+    }
+    
+    cout << "本地监听: 0.0.0.0:" << SERV_PORT << endl;
+    cout << "目标IP: " << ODROID_IP << endl;==============" << endl;
     cout << "开始UDP通信测试，按Ctrl+C退出" << endl;
+    cout << "等待ODroid发送数据..." << endl;
     cout << "========================================" << endl;
     
     _msg_request msg_request;
@@ -107,30 +123,44 @@ int main(int argc, char** argv) {
     int recv_count = 0;
     int loop_count = 0;
     
+    // ODroid的地址（首次从recvfrom获取，之后复用）
+    struct sockaddr_in odroid_addr;
+    socklen_t odroid_addr_len = sizeof(odroid_addr);
+    bool has_client = false;
+    
     while (g_running) {
-        // 发送Response消息
-        memcpy(send_buf, &msg_response, sizeof(msg_response));
-        int send_num = sendto(sock_fd, send_buf, sizeof(msg_response), 
-                             MSG_WAITALL, (struct sockaddr *)&addr_serv, len);
-        
-        if(send_num < 0) {
-            perror("发送失败");
-            break;
-        }
-        send_count++;
-        
-        // 接收Request消息
+        // 先接收Request消息（等待ODroid发送）
         int recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 
-                               MSG_WAITALL, (struct sockaddr *)&addr_serv, 
-                               (socklen_t *)&len);
+                               0, (struct sockaddr *)&odroid_addr, 
+                               &odroid_addr_len);
         
         if(recv_num > 0) {
             memcpy(&msg_request, recv_buf, sizeof(msg_request));
             recv_count++;
             
-            // 每250次循环（0.5秒）打印一次详细信息
+            // 首次收到数据，记录客户端地址
+            if(!has_client) {
+                has_client = true;
+                char client_ip[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &odroid_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
+                cout << "收到ODroid连接: " << client_ip << ":" 
+                     << ntohs(odroid_addr.sin_port) << endl;
+            }
+            
+            // 立即回复Response消息
+            memcpy(send_buf, &msg_response, sizeof(msg_response));
+            int send_num = sendto(sock_fd, send_buf, sizeof(msg_response), 
+                                 0, (struct sockaddr *)&odroid_addr, odroid_addr_len);
+            
+            if(send_num > 0) {
+                send_count++;
+            } else if(!g_running) {
+                break;
+            }
+            
+            // 每250次接收（0.5秒）打印一次详细信息
             if(recv_count % 250 == 0) {
-                cout << "\n[统计 #" << loop_count << "]" << endl;
+                cout << "\n[统计 #" << recv_count << "]" << endl;
                 cout << "  发送: " << send_count << " 包" << endl;
                 cout << "  接收: " << recv_count << " 包" << endl;
                 cout << "  丢包率: " << fixed << setprecision(2) 
@@ -175,16 +205,13 @@ int main(int argc, char** argv) {
                      << msg_response.q_exp[9] << "]" << endl;
                 cout << "========================================" << endl;
             }
+        } else if(errno == EAGAIN || errno == EWOULDBLOCK) {
+            // 超时，继续等待
+        } else if(!g_running) {
+            break;
         }
         
         loop_count++;
-        
-        // 每100次循环简单打印一次
-        if(loop_count % 100 == 0) {
-            cout << "." << flush;
-        }
-        
-        usleep(2000);  // 2ms, 500Hz
     }
     
     cout << "\n\n========================================" << endl;
