@@ -173,7 +173,7 @@ int main(int argc, char** argv) {
     
     // 正弦参数（与test_motor_control.cpp保持一致）
     const float amplitude = M_PI;        // 幅值为PI
-    const float period_s = 4.0f;         // 周期4秒
+    const float period_s = 10.0f;        // 周期10秒
     const float omega_sine = 2.0f * M_PI / period_s;  // 角频率
     
     int send_count = 0;
