@@ -8,10 +8,12 @@
  *       1. 生成正弦位置指令发送给ODroid（模拟RL输出）
  *       2. 接收ODroid的观测反馈并打印（验证数据流）
  *       3. 不加载模型，不进行推理，纯数据流测试
+ *       4. 从robot.yaml读取标定的初始姿态
  */
 
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <cstring>
 #include <cmath>
 #include <sys/types.h>
@@ -20,6 +22,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <csignal>
+#include <string>
+#include <sstream>
 
 using namespace std;
 
@@ -48,6 +52,109 @@ volatile bool g_running = true;
 void signal_handler(int sig) {
     cout << "\n收到信号 " << sig << ", 准备退出..." << endl;
     g_running = false;
+}
+
+/**
+ * @brief 从YAML文件读取初始姿态配置
+ * @param filename YAML文件路径
+ * @param init_pos 输出：10个关节的初始位置
+ * @return 是否成功读取
+ */
+bool load_init_pose_from_yaml(const string& filename, float init_pos[10]) {
+    ifstream yaml_file(filename);
+    if (!yaml_file.is_open()) {
+        cerr << "警告: 无法打开配置文件 " << filename << endl;
+        cerr << "      将使用默认初始姿态" << endl;
+        return false;
+    }
+    
+    cout << "正在读取配置文件: " << filename << " ... ";
+    
+    string line;
+    int joint_index = 0;
+    bool in_init_pose_section = false;
+    
+    while (getline(yaml_file, line) && joint_index < 10) {
+        // 跳过注释和空行
+        size_t comment_pos = line.find('#');
+        if (comment_pos != string::npos) {
+            line = line.substr(0, comment_pos);
+        }
+        
+        // 查找init_pose段
+        if (line.find("init_pose:") != string::npos) {
+            in_init_pose_section = true;
+            continue;
+        }
+        
+        if (!in_init_pose_section) continue;
+        
+        // 解析关节值（格式: "yaw: 0.123456  # rad"）
+        size_t colon_pos = line.find(':');
+        if (colon_pos != string::npos) {
+            string value_str = line.substr(colon_pos + 1);
+            
+            // 去除前后空格
+            size_t start = value_str.find_first_not_of(" \t");
+            size_t end = value_str.find_first_of(" \t#", start);
+            
+            if (start != string::npos) {
+                value_str = value_str.substr(start, end - start);
+                
+                try {
+                    float value = stof(value_str);
+                    init_pos[joint_index++] = value;
+                } catch (const exception& e) {
+                    cerr << "\n错误: 解析失败 - " << e.what() << endl;
+                    yaml_file.close();
+                    return false;
+                }
+            }
+        }
+    }
+    
+    yaml_file.close();
+    
+    if (joint_index == 10) {
+        cout << "✓ 成功!" << endl;
+        return true;
+    
+    // ===== 读取初始姿态配置 =====
+    float robot_init_pos[10] = {
+        0.0, -0.07, 0.57, -1.12, 0.56,   // 左腿默认值
+        0.0,  0.07, 0.57, -1.12, 0.56    // 右腿默认值
+    };
+    
+    string yaml_file = "../robot.yaml";
+    if (argc >= 2 && string(argv[1]) == "--config" && argc >= 3) {
+        yaml_file = argv[2];
+    }
+    
+    bool yaml_loaded = load_init_pose_from_yaml(yaml_file, robot_init_pos);
+    
+    if (yaml_loaded) {
+        cout << "\n初始姿态配置 (从 " << yaml_file << "):" << endl;
+        cout << "  左腿: [";
+        for (int i = 0; i < 5; i++) {
+            cout << fixed << setprecision(3) << robot_init_pos[i];
+            if (i < 4) cout << ", ";
+        }
+        cout << "]" << endl;
+        cout << "  右腿: [";
+        for (int i = 5; i < 10; i++) {
+            cout << robot_init_pos[i];
+            if (i < 9) cout << ", ";
+        }
+        cout << "]" << endl;
+    } else {
+        cout << "\n使用默认初始姿态（未找到配置文件）" << endl;
+        cout << "提示: 运行 ./calibrate_robot 进行标定" << endl;
+    }
+    cout << "========================================" << endl;
+    } else {
+        cerr << "\n错误: 配置文件不完整，仅读取到 " << joint_index << " 个关节" << endl;
+        return false;
+    }
 }
 
 // 打印观测信息（39维）
@@ -137,6 +244,12 @@ int main(int argc, char** argv) {
     if (argc >= 2) {
         ODROID_IP = argv[1];
     }
+    
+    // 初始化msg_request中的init_pos（用于发送给ODroid）
+    memset(&msg_request, 0, sizeof(msg_request));
+    for (int i = 0; i < 10; i++) {
+        msg_request.init_pos[i] = robot_init_pos[i];
+    }
     if (argc >= 3) {
         SERV_PORT = atoi(argv[2]);
     }
@@ -225,9 +338,9 @@ int main(int argc, char** argv) {
                 print_observation(msg_request, recv_count);
             }
             cout << "[当前时间] t=" << fixed << setprecision(3) << elapsed_s 
-                 << "s, 目标位置=" << target_position << " rad (" 
-                 << (target_position * 180.0 / M_PI) << " deg)" << endl;
-            last_print_time_us = now_us;
+           动作 = 初始位置 + 正弦扰动
+        for (int i = 0; i < 10; i++) {
+            msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;  // 20%幅值扰动
         }
         
         // ===== 3. 生成并发送正弦Action (Response消息) =====
