@@ -171,13 +171,11 @@ float calibrate_joint(int joint_id, int sock_fd,
     cout << "  3. 确认姿态合适后，按 Enter 键保存" << endl;
     cout << "  4. 按 's' 跳过此关节（使用默认值0.0）" << endl;
     cout << "========================================" << endl;
+    cout << "提示: 标定期间该关节扭矩已卸载，可手动调整" << endl;
     
     _msg_response msg_response;
     memset(&msg_response, 0, sizeof(msg_response));
     char send_buf[500] = {0};
-    
-    // 发送零控制指令（保持当前姿态）
-    memcpy(send_buf, &msg_response, sizeof(msg_response));
     
     float current_angle = 0.0f;
     int update_count = 0;
@@ -190,14 +188,29 @@ float calibrate_joint(int joint_id, int sock_fd,
     terminal_modified = true;
     
     while (g_running) {
-        // 持续发送零指令
-        sendto(sock_fd, send_buf, sizeof(msg_response), 
-               0, (struct sockaddr *)&odroid_addr, addr_len);
-        
-        // 更新显示
+        // 更新反馈
         if (feedback_received) {
             current_angle = latest_feedback.q[joint_id];
             
+            // 关键：将所有关节的目标位置设置为当前实际位置
+            // 这样电机不会施加扭矩，可以自由手动调整
+            for (int i = 0; i < 10; i++) {
+                msg_response.q_exp[i] = latest_feedback.q[i];
+                msg_response.dq_exp[i] = 0.0f;
+                msg_response.tau_exp[i] = 0.0f;  // 力矩为0
+            }
+            
+            // 更新发送缓冲
+            memcpy(send_buf, &msg_response, sizeof(msg_response));
+            
+            // 发送控制指令（目标=当前位置，实现扭矩卸载）
+            sendto(sock_fd, send_buf, sizeof(msg_response), 
+                   0, (struct sockaddr *)&odroid_addr, addr_len);
+            // 发送控制指令（目标=当前位置，实现扭矩卸载）
+            sendto(sock_fd, send_buf, sizeof(msg_response), 
+                   0, (struct sockaddr *)&odroid_addr, addr_len);
+            
+            // 更新显示
             if (update_count % 10 == 0) {  // 每20ms更新一次显示
                 cout << "\r当前角度: " << fixed << setprecision(4) << setw(8) 
                      << current_angle << " rad (" << setw(7) << setprecision(2)
