@@ -77,10 +77,6 @@ int main(int argc, char** argv) {
     
     // 支持命令行参数修改IP和端口
     if (argc >= 2) {
-        UDP_IP = argv[1];
-    }
-    if (argc >= 3) {
-        SERV_PORT = atoi(argv[2]);
         ODROID_IP = argv[1];
     }
     if (argc >= 3) {
@@ -102,7 +98,11 @@ int main(int argc, char** argv) {
     }
     
     cout << "本地监听: 0.0.0.0:" << SERV_PORT << endl;
-    cout << "目标IP: " << ODROID_IP << endl;==============" << endl;
+    cout << "目标IP: " << ODROID_IP << endl;
+    cout << "端口: " << SERV_PORT << endl;
+    cout << "Request消息大小: " << sizeof(_msg_request) << " bytes" << endl;
+    cout << "Response消息大小: " << sizeof(_msg_response) << " bytes" << endl;
+    cout << "========================================" << endl;
     cout << "开始UDP通信测试，按Ctrl+C退出" << endl;
     cout << "等待ODroid发送数据..." << endl;
     cout << "========================================" << endl;
