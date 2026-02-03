@@ -15,6 +15,8 @@
  *       ./calibrate_robot --joint 0    # 只标定指定关节
  */
 
+#define _USE_MATH_DEFINES  // 必须在 cmath 之前定义以启用 M_PI
+#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -27,6 +29,11 @@
 #include <csignal>
 #include <string>
 #include <vector>
+
+// 如果系统未定义 M_PI，手动定义
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 using namespace std;
 
