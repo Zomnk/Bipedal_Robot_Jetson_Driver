@@ -54,8 +54,9 @@ add_custom_target(lcm_types ALL
 
 add_executable(lcm_service src/lcm_service.cpp)
 add_executable(lcm_publisher src/lcm_publisher.cpp)
-add_executable(udp_publisher src/udp_publisher.cpp)
+# add_executable(udp_publisher src/udp_publisher.cpp)
 add_executable(udp_publisher_tinker src/udp_publisher_tinker.cpp)
+add_executable(udp_test src/udp_test.cpp)  # UDP通信测试程序（不需要PyTorch）
 
 add_dependencies(lcm_service lcm_types)
 add_dependencies(lcm_publisher lcm_types)
@@ -64,9 +65,10 @@ add_dependencies(udp_publisher lcm_types)
 set(LCM_LIBRARIES "/usr/local/lib/liblcm.so.1.5.0")
 target_link_libraries(lcm_service ${LCM_LIBRARIES})
 target_link_libraries(lcm_publisher ${LCM_LIBRARIES})
-target_link_libraries(udp_publisher ${LCM_LIBRARIES})
+# target_link_libraries(udp_publisher ${LCM_LIBRARIES})
 
 target_link_libraries(lcm_service ${TORCH_LIBRARIES})
 target_link_libraries(lcm_publisher ${TORCH_LIBRARIES})
-target_link_libraries(udp_publisher ${TORCH_LIBRARIES})
+# target_link_libraries(udp_publisher ${TORCH_LIBRARIES})
 target_link_libraries(udp_publisher_tinker ${TORCH_LIBRARIES})
+# udp_test 不需要链接PyTorch库，只需要标准C++库
