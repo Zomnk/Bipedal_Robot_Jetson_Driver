@@ -272,7 +272,8 @@ int main(int argc, char** argv) {
     cout << "Request消息大小: " << sizeof(_msg_request) << " bytes" << endl;
     cout << "Response消息大小: " << sizeof(_msg_response) << " bytes" << endl;
     cout << "========================================" << endl;
-    cout << "正弦参数: 幅值=PI, 周期=10秒" << endl;
+    cout << "正弦参数: 幅值=1.57rad (约90°), 周期=10秒" << endl;
+    cout << "说明: 正弦波 + 初始位置 = 电机目标位置" << endl;
     cout << "========================================" << endl;
     cout << "开始完整数据流测试，按Ctrl+C退出" << endl;
     cout << "等待ODroid连接..." << endl;
@@ -290,7 +291,7 @@ int main(int argc, char** argv) {
     }
     
     // 正弦参数（与test_motor_control.cpp保持一致）
-    const float amplitude = M_PI;        // 幅值为PI
+    const float amplitude = 1.57f;       // 幅值1.57 rad (约90度)
     const float period_s = 10.0f;        // 周期10秒
     const float omega_sine = 2.0f * M_PI / period_s;  // 角频率
     
@@ -396,9 +397,9 @@ int main(int argc, char** argv) {
             last_print_time_us = now_us;
         }
         
-        // ===== 4. 生成并发送正弦Action (Response消息) =====
-        // Action = InitPos + Sine * 0.2 (20% amplitude perturbation for safety)
+        // ===== 4. 生成并发送正弦Action ((正弦波作为增量叠加在初始位置上)
         for (int i = 0; i < 10; i++) {
+            msg_response.q_exp[i] = robot_init_pos[i] + target_position
             msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;
             msg_response.dq_exp[i] = 0.0f;
             msg_response.tau_exp[i] = 0.0f;
