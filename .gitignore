@@ -1,0 +1,146 @@
+# Build directories
+build/
+cmake-build-*/
+.cmake/
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.ko
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+udp_publisher
+udp_publisher_tinker
+lcm_publisher
+lcm_service
+lcm_client
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+Makefile
+
+# LCM generated files (optional, uncomment if you want to ignore generated files)
+# lcm_types/my_lcm/*.py
+# lcm_types/my_lcm/*.hpp
+# lcm_types/my_lcm/__pycache__/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyTorch models (optional, uncomment if models should not be tracked)
+# *.pt
+# *.pth
+# *.onnx
+# *.torchscript
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*
+
+# CUDA
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
+# Backup directory
+back/
+backup/
+
+# System files
+Thumbs.db
+.DS_Store
+*.autosave
+
+# Documentation build
+doc/html/
+doc/latex/
+doxygen_warnings.txt
+
+# Test files
+test_*
+*_test
+
+# Custom output files
+output/
+results/
+data/
+logs/
+
+# 历史忽略项
+/**/.history
