@@ -397,10 +397,10 @@ int main(int argc, char** argv) {
             last_print_time_us = now_us;
         }
         
-        // ===== 4. 生成并发送正弦Action ((正弦波作为增量叠加在初始位置上)
+        // ===== 4. 生成并发送正弦Action (Response消息) =====
+        // Action = InitPos + Sine (正弦波作为增量叠加在初始位置上)
         for (int i = 0; i < 10; i++) {
-            msg_response.q_exp[i] = robot_init_pos[i] + target_position
-            msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;
+            msg_response.q_exp[i] = robot_init_pos[i] + target_position;
             msg_response.dq_exp[i] = 0.0f;
             msg_response.tau_exp[i] = 0.0f;
         }
