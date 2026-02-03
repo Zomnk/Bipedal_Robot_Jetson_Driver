@@ -309,6 +309,10 @@ int main(int argc, char** argv) {
     
     uint64_t last_print_time_us = start_time_us;
     
+    // 标志：是否已完成初始化延迟
+    bool initialization_done = false;
+    uint64_t connection_time_us = 0;
+    
     while (g_running) {
         // ===== 1. 先接收ODroid的观测量 (Request消息) =====
         int recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 
@@ -327,18 +331,62 @@ int main(int argc, char** argv) {
                 cout << "\n收到ODroid连接: " << client_ip << ":" 
                      << ntohs(odroid_addr.sin_port) << endl;
                 cout << "开始数据交互..." << endl;
+                
+                // 记录连接时间，用于初始化延迟
+                struct timeval conn_tv;
+                gettimeofday(&conn_tv, NULL);
+                connection_time_us = conn_tv.tv_sec * 1000000ULL + conn_tv.tv_usec;
+                
+                cout << "\n等待2秒让机器人回到初始姿态..." << endl;
             }
         }
         
-        // ===== 2. 获取当前时间，计算正弦位置 =====
+        // ===== 2. 获取当前时间，检查是否完成初始化延迟 =====
         struct timeval now_tv;
         gettimeofday(&now_tv, NULL);
         uint64_t now_us = now_tv.tv_sec * 1000000ULL + now_tv.tv_usec;
+        
+        // 检查初始化延迟（2秒）
+        if (has_client && !initialization_done) {
+            uint64_t elapsed_since_connect = now_us - connection_time_us;
+            if (elapsed_since_connect >= 2000000) {  // 2秒 = 2,000,000微秒
+                initialization_done = true;
+                cout << "✓ 初始化完成，开始正弦波测试..." << endl;
+                // 重置起始时间，从现在开始计算正弦波
+                start_time_us = now_us;
+                last_print_time_us = now_us;
+            } else {
+                // 初始化期间，发送初始位置（保持不动）
+                for (int i = 0; i < 10; i++) {
+                    msg_response.q_exp[i] = robot_init_pos[i];
+                    msg_response.dq_exp[i] = 0.0f;
+                    msg_response.tau_exp[i] = 0.0f;
+                }
+                
+                // 显示倒计时
+                float remaining_s = (2000000 - elapsed_since_connect) / 1000000.0f;
+                if ((int)(remaining_s * 10) % 5 == 0) {  // 每0.5秒更新一次
+                    cout << "\r初始化中... " << fixed << setprecision(1) 
+                         << remaining_s << "s      " << flush;
+                }
+                
+                if (has_client) {
+                    memcpy(send_buf, &msg_response, sizeof(msg_response));
+                    sendto(sock_fd, send_buf, sizeof(msg_response), 
+                           0, (struct sockaddr *)&odroid_addr, odroid_addr_len);
+                }
+                
+                usleep(2000);
+                continue;  // 跳过正弦波生成
+            }
+        }
+        
+        // ===== 3. 计算正弦位置（仅在初始化完成后）=====
         float elapsed_s = (now_us - start_time_us) / 1000000.0f;
         float target_position = amplitude * sin(omega_sine * elapsed_s);
         
         // 每500ms打印一次详细观测信息（包含当前目标位置）
-        if (now_us - last_print_time_us >= 500000) {
+        if (initialization_done && now_us - last_print_time_us >= 500000) {
             if(recv_count > 0) {
                 print_observation(msg_request, recv_count);
             }
@@ -348,7 +396,7 @@ int main(int argc, char** argv) {
             last_print_time_us = now_us;
         }
         
-        // ===== 3. 生成并发送正弦Action (Response消息) =====
+        // ===== 4. 生成并发送正弦Action (Response消息) =====
         // Action = InitPos + Sine * 0.2 (20% amplitude perturbation for safety)
         for (int i = 0; i < 10; i++) {
             msg_response.q_exp[i] = robot_init_pos[i] + target_position * 0.2f;
