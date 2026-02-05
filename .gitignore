@@ -83,9 +83,6 @@ wheels/
 MANIFEST
 
 # PyTorch models (optional, uncomment if models should not be tracked)
-# *.pt
-# *.pth
-# *.onnx
 # *.torchscript
 
 # IDE

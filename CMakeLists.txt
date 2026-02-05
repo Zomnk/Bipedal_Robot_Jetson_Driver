@@ -57,9 +57,11 @@ add_executable(lcm_service src/lcm_service.cpp)
 add_executable(lcm_publisher src/lcm_publisher.cpp)
 add_executable(udp_publisher src/udp_publisher.cpp)
 add_executable(udp_publisher_tinker src/udp_publisher_tinker.cpp)
+add_executable(main src/main.cpp)  # 改进版主程序（推荐使用）
 add_executable(udp_test src/udp_test.cpp)  # UDP通信测试程序（不需要PyTorch）
 add_executable(jetson_full_test src/jetson_full_test.cpp)  # 完整数据流测试（不需要PyTorch）
 add_executable(calibrate_robot src/calibrate_robot.cpp)  # 机器人标定工具（不需要PyTorch）
+add_executable(test_libtorch_model test/test_libtorch_model.cpp)  # LibTorch模型推理测试
 
 add_dependencies(lcm_service lcm_types)
 add_dependencies(lcm_publisher lcm_types)
@@ -74,4 +76,6 @@ target_link_libraries(lcm_service ${TORCH_LIBRARIES})
 target_link_libraries(lcm_publisher ${TORCH_LIBRARIES})
 target_link_libraries(udp_publisher ${TORCH_LIBRARIES})
 target_link_libraries(udp_publisher_tinker ${TORCH_LIBRARIES})
+target_link_libraries(main ${TORCH_LIBRARIES})
+target_link_libraries(test_libtorch_model ${TORCH_LIBRARIES})
 # udp_test, jetson_full_test, calibrate_robot 不需要链接PyTorch库，只需要标准C++库

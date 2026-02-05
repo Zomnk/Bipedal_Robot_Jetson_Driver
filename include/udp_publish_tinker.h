@@ -41,6 +41,7 @@ public:
     int load_policy();
     torch::Tensor model_infer(torch::Tensor policy_input);
     void handleMessage(_msg_request request);//获取机器人反馈
+    void getLastObservation(float* obs);  // 获取最后一次的观测向量（39维）
 
     //gamepad
     float smooth = 0.03;
@@ -71,8 +72,11 @@ public:
     float ang_vel = 0.25;
     torch::jit::script::Module model;
     torch::DeviceType device;
+
+    // 最后一次的观测向量（用于调试输出）
+    std::vector<float> last_obs;
 private:
 
-   
+
 };
 

@@ -233,7 +233,27 @@ void RL_Tinymal_UDP::handleMessage(_msg_request request)
             action_temp[j] = limit(action_getter[j], -15, 15);  // 保存原始值用于下次观测
         }
         
+        // 保存观测向量用于调试输出
+        this->last_obs = obs;
+
         action_refresh = 1;  // 标记动作已更新，可以发送
+    }
+}
+
+/**
+ * @brief 获取最后一次的观测向量
+ * @param obs 输出的观测数组（39维）
+ */
+void RL_Tinymal_UDP::getLastObservation(float* obs) {
+    if (last_obs.size() == 39) {
+        for (int i = 0; i < 39; i++) {
+            obs[i] = last_obs[i];
+        }
+    } else {
+        // 如果还没有观测数据，返回全零
+        for (int i = 0; i < 39; i++) {
+            obs[i] = 0.0f;
+        }
     }
 }
 
